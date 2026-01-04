@@ -1,11 +1,12 @@
 import { useState } from "react"
+import { Button } from "~components/ui/button"
 
 function IndexPopup() {
   const [data, setData] = useState("")
 
   return (
     <div>
-      <h1>Popup Page</h1>
+			<Button className="w-full">Click me</Button>
     </div>
   )
 }
