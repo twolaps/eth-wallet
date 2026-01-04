@@ -11,6 +11,9 @@ importers:
       '@radix-ui/react-slot':
         specifier: ^1.2.4
         version: 1.2.4(@types/react@18.2.48)(react@18.2.0)
+      buffer:
+        specifier: ^6.0.3
+        version: 6.0.3
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -26,6 +29,9 @@ importers:
       plasmo:
         specifier: 0.90.5
         version: 0.90.5(@swc/core@1.15.8(@swc/helpers@0.5.18))(@swc/helpers@0.5.18)(@types/node@20.11.5)(postcss@8.4.49)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      process:
+        specifier: ^0.11.10
+        version: 0.11.10
       react:
         specifier: 18.2.0
         version: 18.2.0
