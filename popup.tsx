@@ -1,13 +1,20 @@
 import { useState } from "react"
 import "./globals.css"
-import { Button } from "~/components/ui/button"
+import { Buffer } from "buffer"
+import process from "process"
+import { Button } from "~components/ui/button"
+
+if (typeof window !== "undefined") {
+  window.Buffer = window.Buffer || Buffer
+  window.process = process
+}
 
 function IndexPopup() {
   const [data, setData] = useState("")
 
   return (
-    <div>
-			<Button className="w-full">Click me111</Button>
+    <div className="p-4">
+			<Button>asdf</Button>
     </div>
   )
 }
