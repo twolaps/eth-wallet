@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    /* ... 你可以在这里根据需要添加更多 shadcn 颜色变量 */
+    --radius: 0.5rem;
+  }
+}
