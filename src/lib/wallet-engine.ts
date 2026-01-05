@@ -12,10 +12,6 @@ export const WalletEngine = {
 			privateKey: wallet.privateKey
 		}
 
-		console.log("--- 新钱包已生成 ---")
-    console.log("地址:", result.address)
-    console.log("助记词:", result.mnemonic)
-    console.log("私钥:", result.privateKey)
 		return result;
 	},
 
