@@ -1,5 +1,4 @@
-import { privateDecrypt } from "crypto";
-import { formatEther, formatUnits, HDNodeWallet, JsonRpcProvider, Wallet } from "ethers"
+import { formatEther, HDNodeWallet, JsonRpcProvider, Wallet } from "ethers"
 
 const SEPOLIA_RPC_URL = "https://eth-sepolia.g.alchemy.com/v2/EI-sjwkwnRwHeb_D6_FsC";
 
