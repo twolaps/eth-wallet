@@ -4,6 +4,8 @@
 
 @layer base {
   :root {
+		--font-sans: "Inter" system-ui;
+		--font-mono: "Consolas" "Monaco" "monospace";
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -33,5 +35,9 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+	html {
+    /* 默认是 16px，改为 18px 或更高，所有使用 rem 的组件都会自动等比例放大 */
+    font-size: 24px; 
   }
 }
