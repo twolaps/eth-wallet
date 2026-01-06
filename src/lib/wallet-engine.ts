@@ -1,3 +1,5 @@
+import { AES } from "crypto-js";
+
 import { formatEther, HDNodeWallet, JsonRpcProvider, Wallet } from "ethers"
 
 const SEPOLIA_RPC_URL = "https://eth-sepolia.g.alchemy.com/v2/EI-sjwkwnRwHeb_D6_FsC";
@@ -43,4 +45,16 @@ export const WalletEngine = {
 		}
 	}
 
+	
+
+}
+
+export const encryptData = (mnemonic: string, password: string): string => {
+	return AES.encrypt(mnemonic, password).toString();
+}
+
+export const decryptData = (ciphertext: string, password: string): string | null => {
+	const bytes = AES.decrypt(ciphertext, password);
+	const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
+	return decryptedData || null;
 }
