@@ -2,12 +2,16 @@ import { useWalletStore } from "~stores/walletStores";
 import "./globals.css"
 import { useState } from "react";
 import { SetPasswordView } from "~components/view/SetPasswordView";
+import { AccountView } from "~components/view/AccountView";
+import { Page } from "~lib/types";
 
 function IndexPopup() {
 
 	// setAccounts([]);
 	// setDecryptedMnemonic(null);
 	// setCurIndex(0);
+
+	const [page, setPage] = useState<Page | null>(null);
 
 	const {	
 		mnemonic,
@@ -37,7 +41,7 @@ function IndexPopup() {
 		contentJSX = <SetPasswordView handleSetupPassword={handleSetupPassword} />
 	}
 	else {
-		contentJSX = <div>钱包已创建，当前账户：{currentAccount?.address}</div>
+		contentJSX = <AccountView accounts={accounts} setPage={setPage}/>
 	}
 
   return (

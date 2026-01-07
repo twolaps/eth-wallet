@@ -3,4 +3,5 @@ export enum Page {
 	SetPassword,
 	BalanceView,
 	Login,
+	AccountList,
 }
