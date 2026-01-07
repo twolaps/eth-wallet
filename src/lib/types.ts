@@ -1,5 +1,6 @@
 export enum Page {
 	Welcome,
 	SetPassword,
-	BalanceView
+	BalanceView,
+	Login,
 }

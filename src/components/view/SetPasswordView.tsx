@@ -1,12 +1,12 @@
-import { useEffect, useState, type ChangeEvent } from "react"
+import { useState, type ChangeEvent } from "react"
 import { Button } from "~components/ui/button"
 import { Input } from "~components/ui/input"
 
 interface SetPasswordViewProps {
-	setPassword: (password: string) => void;
+	handleSetupPassword: (password: string) => void;
 }
 
-export const SetPasswordView = ({ setPassword }: SetPasswordViewProps) => {
+export const SetPasswordView = ({ handleSetupPassword }: SetPasswordViewProps) => {
 
 	const [password1, setPassword1] = useState<string>("");
 	const [password2, setPassword2] = useState<string>("");
@@ -22,7 +22,7 @@ export const SetPasswordView = ({ setPassword }: SetPasswordViewProps) => {
 		setPassword2(value);
 	}
 
-	const onClickConfirm = () => {
+	const onClickConfirm = async() => {
 		if(password1.length < 8 || password2.length < 8){
 			alert("密码长度不能少于8位");
 			return;
@@ -33,7 +33,7 @@ export const SetPasswordView = ({ setPassword }: SetPasswordViewProps) => {
 		}
 		else{
 			alert("密码设置成功");
-			setPassword(password1);
+			await handleSetupPassword(password1);
 		}
 	}
 
