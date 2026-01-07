@@ -10,6 +10,7 @@ import { WelcomePage } from "~components/view/WelcomePage"
 import { LoginView } from "~components/view/LoginView"
 import { useWalletSetup } from "~hooks/useWalletSetup"
 import { Storage } from "@plasmohq/storage"
+import { decryptData, WalletEngine } from "~lib/wallet-engine"
 
 if (typeof window !== "undefined") {
   window.Buffer = window.Buffer || Buffer
@@ -44,6 +45,26 @@ function IndexPopup() {
 		}
 	}
 
+	const handleLogin = async (password: string) => {
+		const resultMnemonic = await decryptData(mnemonic, password);
+		if(resultMnemonic && resultMnemonic.length > 0){
+			setDecryptedMnemonic(resultMnemonic);
+			setPassword(password);
+			const result = WalletEngine.getWallet(resultMnemonic, 0);
+			if (!result.success) {
+				alert("密码错误");
+			}
+			else {
+				setAddress(result.address);
+				setPage(Page.BalanceView);
+			}
+
+		}
+		else {
+			alert("密码错误");
+		}
+	}
+
 	let contentView: JSX.Element;
 	switch (page) {
 		case Page.SetPassword:
@@ -55,15 +76,14 @@ function IndexPopup() {
 		case Page.BalanceView:
 			contentView = 
 				<BalanceView 
-					mnemonic={mnemonic}
-					setMnemonic={setMnemonic}
+					mnemonic={decryptedMnemonic}
 					address={address}
 					setAddress={setAddress}
 					balance={balance}
 					setBalance={setBalance} />;
 			break;
 		case Page.Login:
-			contentView = <LoginView  setPassword={setPassword}/>
+			contentView = <LoginView handleLogin={handleLogin}/>
 			break;
 		default:
 			contentView = <WelcomePage setPage={setPage} />;

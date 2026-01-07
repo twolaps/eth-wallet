@@ -6,7 +6,6 @@ import { WalletEngine } from "~lib/wallet-engine";
 
 interface BalanceViewProps {
 	mnemonic: string;
-	setMnemonic: (mnemonic: string) => void;
 	address: string;
 	setAddress: (address: string) => void;
 	balance: string;
@@ -15,9 +14,7 @@ interface BalanceViewProps {
 
 export const BalanceView = (
 	{ 
-		mnemonic, setMnemonic, 
-		address, setAddress, 
-		balance, setBalance 
+		mnemonic, address, setAddress, balance, setBalance 
 	}: BalanceViewProps) => {
 
 
