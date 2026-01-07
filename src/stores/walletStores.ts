@@ -9,7 +9,6 @@ export enum AccountType {
 
 export interface WalletAccount {
 	address: string;
-	privateKey: string | null;
 	name: string;
 	index: number;
 	type: AccountType;
@@ -36,12 +35,11 @@ export const useWalletStore = create<WalletState>()(
 
 			//初始状态
 			createWallet: async (password: string) => {
-				const {mnemonic, address, privateKey} = await WalletEngine.generateNewWallet();
+				const {mnemonic, address} = await WalletEngine.generateNewWallet();
 				const encryptedMnemonic = encryptData(mnemonic, password);
 
 				const firstAccount: WalletAccount = {
 					address,
-					privateKey,
 					name: "Account 1",
 					index: 0,
 					type: AccountType.HD,
@@ -75,7 +73,6 @@ export const useWalletStore = create<WalletState>()(
 
 				const newAccount: WalletAccount = {
 					address,
-					privateKey,
 					name: `Account ${newIndex + 1}`,
 					index: newIndex,
 					type: AccountType.HD,
