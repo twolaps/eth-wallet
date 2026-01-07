@@ -34,17 +34,16 @@ export const AccountView = ({ accounts, setPage}: AccountViewProps) => {
 	}
 
 	return (
-		<div>
+		<div className="gap-2 flex flex-col">
 			<Button onClick={onCreateAccount}>创建新账户</Button>
 			{accounts.map(account => (
-				<div key={account.address} className="p-2 border-b" onClick={()=>{
-					handleSwitchAccount(account);
-				}}>
-					<div>Name: {account.name}</div>
-					<div>Address: {account.address}</div>
-				</div>
-			))}
-
-		</div>
-	)
-}
+				<div key={account.address} className="p-2 border border-gray-700 rounded-md cursor-pointer" onClick={()=>{
+        handleSwitchAccount(account);
+      }}>
+        <div>Name: {account.name}</div>
+        <div>Address: {account.address}</div>
+      </div>
+    ))}
+  </div>
+);
+};

@@ -5,27 +5,19 @@ import { Separator } from "~components/ui/separator";
 import { WalletEngine } from "~lib/wallet-engine";
 
 interface BalanceViewProps {
-	mnemonic: string;
 	address: string;
-	setAddress: (address: string) => void;
 	balance: string;
 	setBalance: (balance: string) => void;
+	clearCurrentAccount: () => void;
 }
 
-export const BalanceView = (
-	{ 
-		mnemonic, address, setAddress, balance, setBalance 
+export const BalanceView = ({ 
+		address, balance, setBalance, clearCurrentAccount,
 	}: BalanceViewProps) => {
 
-
-	useEffect(() => {
-		if (mnemonic) {
-			const wallet = WalletEngine.getWallet(mnemonic);
-			if (wallet?.success) {
-				setAddress(wallet.address);
-			}
-		}
-	}, [mnemonic]);
+	const handlerSwitchAccount = () => {
+		clearCurrentAccount();
+	}
 
 	useEffect(() => {
 		const getBalance = async () => {
@@ -36,13 +28,19 @@ export const BalanceView = (
 		if (address) {
 			getBalance();
 		}
-	}, [address]);
+	}, [address, setBalance]);
 
 	return (
-    <div className="p-4 w-[500px]">
-			<p>Address: {address}</p>
-			<Separator className="my-2" />
-			<p>Balance: {balance} ETH</p>
-    </div>
-  )
-}
+    <div className="gap-2 w-[500px] flex flex-col items-start justify-center">
+			<Button onClick={handlerSwitchAccount}>切换账号</Button>
+
+			<div>
+				<p>Address:</p>
+				<p>{address}</p>
+				<Separator className="my-2" />
+				<p>Balance: {balance} ETH</p>
+			</div>
+			
+		</div>
+	);
+};

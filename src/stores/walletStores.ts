@@ -23,6 +23,8 @@ interface WalletState {
 	createWallet(password: string): Promise<void>;
 	createAccount(password: string): Promise<void>;
 	switchAccount(address: string): void;
+	clearCurrentAccount: () => void;
+	resetWallet: () => void;
 }
 
 export const useWalletStore = create<WalletState>()(
@@ -94,7 +96,20 @@ export const useWalletStore = create<WalletState>()(
 					set({currentAccount: targetAccount});
 				}
 			},
+
+			clearCurrentAccount: () => {
+				set({currentAccount: null});
+			},
+
+			resetWallet: () => {
+				set({
+					mnemonic: null,
+					accounts: [],
+					currentAccount: null,
+				});
+			},
 		}),
+
 		{
 			name: 'wallet-storage', // 存储名称
 			storage: {
