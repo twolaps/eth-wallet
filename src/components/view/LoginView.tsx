@@ -1,7 +1,6 @@
 import { useState, type ChangeEvent } from "react";
 import { Button } from "~components/ui/button"
 import { Input } from "~components/ui/input"
-import { decryptData, WalletEngine } from "~lib/wallet-engine";
 
 interface LoginViewProps {
 	handleLogin: (password: string) => void;

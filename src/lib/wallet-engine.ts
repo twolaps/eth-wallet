@@ -4,6 +4,12 @@ import { formatEther, HDNodeWallet, JsonRpcProvider, Wallet } from "ethers"
 
 const SEPOLIA_RPC_URL = "https://eth-sepolia.g.alchemy.com/v2/EI-sjwkwnRwHeb_D6_FsC";
 
+export interface AccountInfo {
+	address: string;
+	mnemonicID: string;
+	index: number;
+}
+
 export const WalletEngine = {
 	
 	generateNewWallet: (): { address: string; mnemonic: string; privateKey: string } => {
