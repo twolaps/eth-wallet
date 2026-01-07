@@ -9,21 +9,29 @@ import { SetPasswordView } from "~components/view/SetPasswordView"
 import { WelcomePage } from "~components/view/WelcomePage"
 import { LoginView } from "~components/view/LoginView"
 import { useWalletSetup } from "~hooks/useWalletSetup"
+import { Storage } from "@plasmohq/storage"
 
 if (typeof window !== "undefined") {
   window.Buffer = window.Buffer || Buffer
   window.process = process
 }
 
+const sessionStorage = new Storage({area: "session"});
+
 function IndexPopup() {
 	const [mnemonic, setMnemonic] = useStorage<string>("mnemonic");
-	const [decryptedMnemonic, setDecryptedMnemonic] = useState<string>("");
+	const [decryptedMnemonic, setDecryptedMnemonic] = useStorage<string>({
+		key: "decryptedMnemonic",
+		instance: sessionStorage,
+	});
 	const [address, setAddress] = useState<string>("0x00");
 	const [balance, setBalance] = useState<string>("0.0000");
 	const [password, setPassword] = useState<string>("");
 	const [page, setPage] = useState<Page>(Page.Welcome);
 	const { setupWallet, isLoading, error } = useWalletSetup();
 
+	// setMnemonic(null);
+	// setDecryptedMnemonic(null);
 
 	const	handleSetupPassword = async (password: string) => {
 		const result = await setupWallet(password);
@@ -71,7 +79,7 @@ function IndexPopup() {
 		else {
 			setPage(Page.Welcome);
 		}
-	}, [mnemonic]);
+	}, [mnemonic, decryptedMnemonic]);
 
   return (
     <div className="p-4 w-[500px]">
