@@ -4,4 +4,7 @@ export enum Page {
 	BalanceView,
 	Login,
 	AccountList,
+	ImportedView,
+	TransactView,
+	CreateAccountView,
 }

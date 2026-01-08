@@ -1,6 +1,6 @@
 import { AES, enc } from "crypto-js"
 
-import { formatEther, HDNodeWallet, JsonRpcProvider, Wallet } from "ethers"
+import { FeeData, formatEther, HDNodeWallet, JsonRpcProvider, parseEther, Wallet } from "ethers"
 
 const SEPOLIA_RPC_URL = "https://eth-sepolia.g.alchemy.com/v2/EI-sjwkwnRwHeb_D6_FsC";
 
@@ -49,11 +49,60 @@ export const WalletEngine = {
 			console.error("获取余额失败:", error);
 			return "0.0000";
 		}
+	},
+
+	importWalletFromPrivateKey: (privateKey: string) => {
+		try {
+			const wallet: Wallet = new Wallet(privateKey);
+			return {
+				success: true,
+				address: wallet.address,
+				privateKey: wallet.privateKey,
+			}
+		}
+		catch (error) {
+			console.error("导入钱包失败:", error);
+			return {success: false, error: "导入钱包失败"};
+		}
+	},
+
+	sendTransaction: async (
+		privateKey: string,
+		to: string,
+		amount: string
+	) : Promise<{success: boolean, txHash?: string, error?: string}> => {
+
+		try {
+			const provider: JsonRpcProvider = new JsonRpcProvider(SEPOLIA_RPC_URL);
+			const wallet: Wallet = new Wallet(privateKey, provider);
+
+			//将eth金额转为wei
+			const amountInWei = parseEther(amount);
+
+			//获取gas
+			const feeData: FeeData = await provider.getFeeData();
+
+			//发送交易
+			const tx = await wallet.sendTransaction({
+				to,
+				value: amountInWei,
+				gasLimit: 21000,
+				gasPrice: feeData.gasPrice,
+			});
+
+			await tx.wait();
+
+			return {
+				success: true,
+				txHash: tx.hash,
+			};
+		}
+		catch (error) {
+			console.error("发送交易失败:", error);
+			return {success: false, error: "发送交易失败"};
+		}
 	}
-
-	
-
-}
+};
 
 export const encryptData = (mnemonic: string, password: string): string => {
 	return AES.encrypt(mnemonic, password).toString();

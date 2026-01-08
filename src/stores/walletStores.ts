@@ -9,6 +9,7 @@ export enum AccountType {
 
 export interface WalletAccount {
 	address: string;
+	privateKey: string | null;
 	name: string;
 	index: number;
 	type: AccountType;
@@ -22,6 +23,8 @@ interface WalletState {
 	createWallet(password: string): Promise<void>;
 	createAccount(password: string): Promise<void>;
 	switchAccount(address: string): void;
+	importAccount: (privateKey: string, password: string, name: string) => Promise<void>;
+	getPrivateKey: (password: string) => Promise<string | null>;
 	clearCurrentAccount: () => void;
 	resetWallet: () => void;
 }
@@ -40,6 +43,7 @@ export const useWalletStore = create<WalletState>()(
 
 				const firstAccount: WalletAccount = {
 					address,
+					privateKey: null,
 					name: "Account 1",
 					index: 0,
 					type: AccountType.HD,
@@ -62,17 +66,14 @@ export const useWalletStore = create<WalletState>()(
 				const decryptedMnemonic = decryptData(state.mnemonic, password);
 				if (!decryptedMnemonic) throw new Error("Invalid password");
 
-				//只过滤出HD类型账号计算index
-				const hdAccounts = state.accounts.filter(
-					acc => acc.type === AccountType.HD);
-
-				const newIndex:number = hdAccounts.length;
+				const newIndex:number = state.accounts.length;
 
 				//派生新账号
-				const {address, privateKey} = await WalletEngine.getWallet(decryptedMnemonic, newIndex);
+				const {address} = await WalletEngine.getWallet(decryptedMnemonic, newIndex);
 
 				const newAccount: WalletAccount = {
 					address,
+					privateKey: null,
 					name: `Account ${newIndex + 1}`,
 					index: newIndex,
 					type: AccountType.HD,
@@ -91,6 +92,56 @@ export const useWalletStore = create<WalletState>()(
 				const targetAccount = accounts.find(acc => acc.address === address);
 				if (targetAccount) {
 					set({currentAccount: targetAccount});
+				}
+			},
+
+			//从私钥导入账号
+			importAccount: async (privateKey: string, password: string, name: string) => {
+				//验证私钥并获取地址
+				const wallet = WalletEngine.importWalletFromPrivateKey(privateKey);
+				if (!wallet.success) throw new Error(wallet.error || "导入钱包失败");
+
+				//检查是否已存在该地址的账号
+				const state = get();
+				const existingAccount = state.accounts.find(acc => acc.address === wallet.address);
+				if (existingAccount) throw new Error("该账户已存在");
+
+				//加密私钥
+				const encryptedPrivateKey = encryptData(privateKey, password);
+				const maxIndex = state.accounts.length;
+
+				const newAccount: WalletAccount = {
+					address: wallet.address,
+					privateKey: encryptedPrivateKey,
+					name: name || `Imported Account ${maxIndex + 1}`,
+					index: maxIndex,
+					type: AccountType.IMPORTED,
+				};
+
+				set({
+					accounts: [...state.accounts, newAccount],
+					currentAccount: newAccount,
+				});
+				console.log("账号导入成功", newAccount);
+			},
+
+			getPrivateKey: async (password: string) => {
+				const state = get();
+				const account = state.currentAccount;
+				if (!account) throw new Error("No account found");
+				if (account.type === AccountType.IMPORTED) {
+					if (!account.privateKey) throw new Error("No private key found");
+					const decryptedPrivateKey = decryptData(account.privateKey, password);
+					if (!decryptedPrivateKey) throw new Error("Invalid password");
+					return decryptedPrivateKey;
+				}
+				else {
+					if (!state.mnemonic) throw new Error("No mnemonic found");
+					const decryptedMnemonic = decryptData(state.mnemonic, password);
+					if (!decryptedMnemonic) throw new Error("Invalid password");
+					const wallet = await WalletEngine.getWallet(decryptedMnemonic, account.index);
+					if (!wallet.success) throw new Error(wallet.error || "Invalid password");
+					return wallet.privateKey;
 				}
 			},
 

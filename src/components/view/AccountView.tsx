@@ -8,7 +8,7 @@ interface AccountViewProps {
 }
 
 export const AccountView = ({ accounts, setPage}: AccountViewProps) => {
-	const {createAccount, switchAccount, currentAccount} = useWalletStore();
+	const {switchAccount} = useWalletStore();
 
 	const handleSwitchAccount = (account: WalletAccount) => {
 		//切换账户逻辑
@@ -19,23 +19,17 @@ export const AccountView = ({ accounts, setPage}: AccountViewProps) => {
 	}
 
 	const onCreateAccount = async () => {
-		//创建新账户逻辑
-		const password = prompt("请输入密码以创建新账户");
-		if(password){
-			//调用createAccount
-			try {
-				await createAccount(password);
-				alert("新账户创建成功");
-			}
-			catch (error) {
-				alert("创建失败，请检查密码");
-			}
-		}
+		setPage(Page.CreateAccountView);
+	}
+
+	const onImportAccount = async () => {
+		setPage(Page.ImportedView);
 	}
 
 	return (
 		<div className="gap-2 flex flex-col">
 			<Button onClick={onCreateAccount}>创建新账户</Button>
+			<Button onClick={onImportAccount}>导入账户</Button>
 			{accounts.map(account => (
 				<div key={account.address} className="p-2 border border-gray-700 rounded-md cursor-pointer" onClick={()=>{
         handleSwitchAccount(account);

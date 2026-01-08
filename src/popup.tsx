@@ -6,12 +6,12 @@ import { AccountView } from "~components/view/AccountView";
 import { Page } from "~lib/types";
 import { BalanceView } from "~components/view/BalanceView";
 import { LoginView } from "~components/view/LoginView";
+import { ImportedView } from "~components/view/ImportedView";
+import { TransactView } from "~components/view/TransactView";
+import { CreateAccountView } from "~components/view/CreateAccountView";
 
 function IndexPopup() {
 
-	// setAccounts([]);
-	// setDecryptedMnemonic(null);
-	// setCurIndex(0);
 
 	const [page, setPage] = useState<Page | null>(null);
 	const [balance, setBalance] = useState<string>("0.0000");
@@ -23,10 +23,10 @@ function IndexPopup() {
 		currentAccount,
 		createWallet,
 		createAccount,
+		importAccount,
 		clearCurrentAccount,
 		resetWallet,} = useWalletStore();
 
-	
 	const handleSetupPassword = async (password: string) => {
 		if (!password || password.length < 8) {
 			alert("密码长度不能少于8位");
@@ -45,10 +45,30 @@ function IndexPopup() {
 		setPassword(password);
 	}
 
+	const handlerImportAccount = async (privateKey: string, password: string, name: string) => {
+		try {
+			await importAccount(privateKey, password, name || "Imported Account");
+			alert("账户导入成功");
+			setPage(null);
+		}
+		catch (error: any) {
+			alert("导入失败：" + (error.message || "请检查私钥或密码"));
+		}
+	}
 	
-	//1. 没有助记词，显示创建钱包界面
 	let contentJSX: JSX.Element = null;
-	if (!mnemonic) {
+
+	if (page === Page.ImportedView) {
+		contentJSX = <ImportedView setPage={setPage} importAccount={handlerImportAccount}/>
+	}
+	else if (page === Page.CreateAccountView) {
+		contentJSX = <CreateAccountView setPage={setPage}/>
+	}
+	else if (page === Page.TransactView) {
+		contentJSX = <TransactView setPage={setPage} balance={balance} setBalance={setBalance}/>
+	}
+	//1. 没有助记词，显示创建钱包界面
+	else if (!mnemonic) {
 		contentJSX = <SetPasswordView handleSetupPassword={handleSetupPassword} />
 	}
 	else if (mnemonic && accounts.length === 0) {
@@ -60,6 +80,7 @@ function IndexPopup() {
 			balance={balance}
 			setBalance={setBalance}
 			clearCurrentAccount={clearCurrentAccount}
+			setPage={setPage}
 		/>
 	}
 	else {
