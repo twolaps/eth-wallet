@@ -7,4 +7,5 @@ export enum Page {
 	ImportedView,
 	TransactView,
 	CreateAccountView,
+	ConfirmTransaction,
 }
