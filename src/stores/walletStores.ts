@@ -15,6 +15,12 @@ export interface WalletAccount {
 	type: AccountType;
 }
 
+export interface PendingTransaction {
+	to: string;
+	value: string;
+	requestId: string;
+}
+
 interface WalletState {
 	mnemonic: string | null; //根助记词
 	accounts: WalletAccount[];
@@ -27,6 +33,9 @@ interface WalletState {
 	getPrivateKey: (password: string) => Promise<string | null>;
 	clearCurrentAccount: () => void;
 	resetWallet: () => void;
+
+	pendingTx: PendingTransaction | null;
+	setPendingTx: (tx: PendingTransaction | null) => void;
 }
 
 export const useWalletStore = create<WalletState>()(
@@ -155,6 +164,11 @@ export const useWalletStore = create<WalletState>()(
 					accounts: [],
 					currentAccount: null,
 				});
+			},
+
+			pendingTx: null,
+			setPendingTx: (tx: PendingTransaction | null) => {
+				set({pendingTx: tx});
 			},
 		}),
 

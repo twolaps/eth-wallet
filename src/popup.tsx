@@ -9,6 +9,8 @@ import { LoginView } from "~components/view/LoginView";
 import { ImportedView } from "~components/view/ImportedView";
 import { TransactView } from "~components/view/TransactView";
 import { CreateAccountView } from "~components/view/CreateAccountView";
+import { TxConfirm } from "~components/view/TxConfirm";
+import { WalletEngine } from "~lib/wallet-engine";
 
 function IndexPopup() {
 
@@ -25,7 +27,25 @@ function IndexPopup() {
 		createAccount,
 		importAccount,
 		clearCurrentAccount,
-		resetWallet,} = useWalletStore();
+		resetWallet,
+		pendingTx,
+		setPendingTx,
+		getPrivateKey} = useWalletStore();
+
+	//处理确认转账
+	const handleConfirmTx = async () => {
+		if (!pendingTx) return;
+		try {
+			const privateKey = await getPrivateKey(password);
+			if (!privateKey) throw new Error("私钥获取失败");
+			WalletEngine.sendTransaction(privateKey, pendingTx.to, pendingTx.value);
+			setPendingTx(null);
+		}
+		catch (error) {
+			console.error("交易处理失败：", error);
+			setPendingTx(null);
+		}
+	}
 
 	const handleSetupPassword = async (password: string) => {
 		if (!password || password.length < 8) {
@@ -58,6 +78,9 @@ function IndexPopup() {
 	
 	let contentJSX: JSX.Element = null;
 
+	if (pendingTx) {
+		contentJSX = <TxConfirm pendingTx={pendingTx} handleConfirmTx={handleConfirmTx} setPendingTx={setPendingTx}/>
+	}
 	if (page === Page.ImportedView) {
 		contentJSX = <ImportedView setPage={setPage} importAccount={handlerImportAccount}/>
 	}
