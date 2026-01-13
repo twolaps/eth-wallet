@@ -99,7 +99,7 @@ async function openConfirmationWindow() {
     await chrome.windows.create({
       url: "popup.html",
       type: "popup",
-      width: 360,
+      width: 500,
       height: 600,
       focused: true
     });
