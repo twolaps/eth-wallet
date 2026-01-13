@@ -1,134 +1,109 @@
-import { Storage } from "@plasmohq/storage";
+// src/background.ts
 
-const storage = new Storage();
-
-// 用来暂存待处理请求的 sendResponse 回调函数
-// Key: requestId, Value: sendResponse function
 const pendingRequests = new Map<string, (response: any) => void>();
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // 1. 处理连接钱包的逻辑
-  if (message.method === "eth_requestAccounts") {
-    handleConnect(sendResponse);
-    return true;
-  }
-  // 2. 处理获取链ID请求
-  else if (message.method === "eth_chainId") {
-    sendResponse({ result: "0xaa36a7" }); // Sepolia Testnet
-    return true;
-  }
-  // 3. 处理发送交易请求
-  else if (message.method === "eth_sendTransaction") {
-    const txParams = message.params[0];
+  console.log("🟧 [Background] 收到消息:", message.method, "ID:", message.requestId);
 
-    // 保存 sendResponse，以便稍后在监听器中调用
-    pendingRequests.set(message.requestId, sendResponse);
-
-    const handleAsync = async () => {
-      try {
-        // 将交易存入 storage, 通知 Popup 显示确认界面
-        await handlePendingTx(txParams, message.requestId);
-
-        // 主动弹窗
+  const handleMessage = async () => {
+    try {
+      if (message.method === "eth_requestAccounts") {
+        await handleConnect(sendResponse);
+      } else if (message.method === "eth_chainId") {
+        sendResponse({ result: "0xaa36a7" }); // Sepolia
+      } else if (message.method === "eth_sendTransaction") {
+        const txParams = message.params[0];
+        // 1. 保存回调
+        pendingRequests.set(message.requestId, sendResponse);
+        
+        // 2. 写入独立的交易请求存储区 (不碰 wallet-storage)
+        await chrome.storage.local.set({
+          "current-transaction": {
+            to: txParams.to,
+            value: txParams.value,
+            requestId: message.requestId,
+            status: "pending",
+            timestamp: Date.now()
+          }
+        });
+        
+        // 3. 打开窗口
         await openConfirmationWindow();
-
-        // 注意：这里不要调用 sendResponse，也不要 delete pendingRequests
-        // 我们在下方的 storage.onChanged 中处理回复
-      } catch (error) {
-        console.error("处理交易请求失败:", error);
-        // 如果启动阶段就出错了，直接返回错误并清理 Map
-        sendResponse({ error: error.message });
-        pendingRequests.delete(message.requestId);
+      } else {
+        console.warn("未处理的方法:", message.method);
       }
-    };
-
-    handleAsync();
-    return true; // 保持消息通道开启
-  }
-});
-
-// 核心补充：监听 Storage 变化，捕获 Popup 的处理结果
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === "local" && changes["wallet-storage"]) {
-    const newValue = JSON.parse(changes["wallet-storage"].newValue || "{}");
-    const pendingTx = newValue.state?.pendingTx;
-
-    // 如果 storage 中有 pendingTx，且状态已经是终态（confirmed/failed/cancelled）
-    if (pendingTx && pendingTx.requestId && pendingRequests.has(pendingTx.requestId)) {
-      
-      const sendResponse = pendingRequests.get(pendingTx.requestId);
-
-      if (pendingTx.status === "confirmed") {
-        console.log("检测到交易成功，返回 Hash:", pendingTx.txHash);
-        sendResponse({ result: pendingTx.txHash });
-        pendingRequests.delete(pendingTx.requestId);
-      } 
-      else if (pendingTx.status === "failed") {
-        console.log("检测到交易失败:", pendingTx.error);
-        sendResponse({ error: pendingTx.error || "Transaction failed" });
-        pendingRequests.delete(pendingTx.requestId);
-      } 
-      else if (pendingTx.status === "cancelled") {
-        console.log("用户取消了交易");
-        sendResponse({ error: "User rejected the transaction" });
-        pendingRequests.delete(pendingTx.requestId);
-      }
-      // 如果状态是 pending，说明用户正在输入密码，不做处理，继续等待
+    } catch (error) {
+      console.error("处理错误:", error);
+      sendResponse({ error: error.message });
+      pendingRequests.delete(message.requestId);
     }
-  }
-});
-
-async function openConfirmationWindow() {
-  const width = 360;
-  const height = 600;
-
-  await chrome.windows.create({
-    url: "popup.html", 
-    type: "popup",
-    width: width,
-    height: height,
-    focused: true
-  });
-}
-
-async function handlePendingTx(params: any, requestId: string) {
-  const storageData = await chrome.storage.local.get("wallet-storage");
-
-  // 构造默认结构，防止 storage 为空时报错
-  let data = storageData["wallet-storage"]
-    ? JSON.parse(storageData["wallet-storage"])
-    : { state: { accounts: [] } };
-
-  // 确保 state 对象存在
-  if (!data.state) data.state = {};
-
-  data.state.pendingTx = {
-    to: params.to,
-    value: params.value,
-    requestId: requestId,
-    status: "pending" // 初始状态
   };
 
-  await chrome.storage.local.set({
-    "wallet-storage": JSON.stringify(data),
-  });
+  handleMessage();
+  return true;
+});
+
+// 监听 "current-transaction" 变化，而不是 wallet-storage
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "local" && changes["current-transaction"]) {
+    const newVal = changes["current-transaction"].newValue;
+    if (!newVal) return;
+
+    // 检查是否有对应的等待请求
+    if (newVal.requestId && pendingRequests.has(newVal.requestId)) {
+      const sendResponse = pendingRequests.get(newVal.requestId);
+
+      if (newVal.status === "confirmed") {
+        console.log("✅ 交易已确认，Hash:", newVal.txHash);
+        sendResponse({ result: newVal.txHash });
+        pendingRequests.delete(newVal.requestId);
+        // 清理存储
+        chrome.storage.local.remove("current-transaction");
+      } else if (newVal.status === "failed") {
+        console.log("❌ 交易失败:", newVal.error);
+        sendResponse({ error: newVal.error });
+        pendingRequests.delete(newVal.requestId);
+        chrome.storage.local.remove("current-transaction");
+      } else if (newVal.status === "cancelled") {
+        console.log("🚫 用户取消");
+        sendResponse({ error: "User rejected the transaction" });
+        pendingRequests.delete(newVal.requestId);
+        chrome.storage.local.remove("current-transaction");
+      }
+    }
+  }
+});
+
+async function handleConnect(sendResponse) {
+  // 只读操作，安全读取
+  const result = await chrome.storage.local.get("wallet-storage");
+  let data: any = {};
+  
+  try {
+    const raw = result["wallet-storage"];
+    if (typeof raw === "string") data = JSON.parse(raw);
+    else if (raw) data = raw;
+  } catch (e) { console.error("读取钱包数据失败", e); }
+
+  const accounts = data?.state?.accounts || [];
+  if (accounts.length > 0) {
+    const address = data?.state?.currentAccount?.address || accounts[0].address;
+    sendResponse({ result: [address] });
+  } else {
+    sendResponse({ error: { code: 4001, message: "请先创建钱包" } });
+  }
 }
 
-async function handleConnect(sendResponse: (response?: any) => void) {
+async function openConfirmationWindow() {
   try {
-    const wallet = await storage.get<any>("wallet");
-    if (wallet && wallet.address) {
-      console.log("DApp 已连接到地址:", wallet.address);
-      sendResponse({ result: [wallet.address] });
-    } else {
-      sendResponse({
-        error: {
-          code: 4001,
-          message: "用户未初始化钱包，请先在插件中创建或导入账户",
-        }
-      });
-    }
-  } catch (error) {
-    sendResponse({ error: error.message });
+    await chrome.windows.create({
+      url: "popup.html",
+      type: "popup",
+      width: 360,
+      height: 600,
+      focused: true
+    });
+  } catch (e) {
+    console.error("打开窗口失败:", e);
   }
 }

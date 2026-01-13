@@ -1,6 +1,6 @@
 import { useWalletStore } from "~stores/walletStores";
 import "./globals.css"
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SetPasswordView } from "~components/view/SetPasswordView";
 import { AccountView } from "~components/view/AccountView";
 import { Page } from "~lib/types";
@@ -13,193 +13,149 @@ import { TxConfirm } from "~components/view/TxConfirm";
 import { WalletEngine } from "~lib/wallet-engine";
 
 function IndexPopup() {
+  const [page, setPage] = useState<Page | null>(null);
+  const [balance, setBalance] = useState<string>("0.0000");
+  const [password, setPassword] = useState<string>("");
 
+  const {
+    mnemonic,
+    accounts,
+    currentAccount,
+    createWallet,
+    createAccount,
+    importAccount,
+    clearCurrentAccount,
+    resetWallet,
+    pendingTx,
+    setPendingTx,
+    getPrivateKey,
+    _hasHydrated
+  } = useWalletStore();
 
-	const [page, setPage] = useState<Page | null>(null);
-	const [balance, setBalance] = useState<string>("0.0000");
-	const [password, setPassword] = useState<string>("");
+  // 1. 新增：监听来自后台的独立交易请求
+  useEffect(() => {
+    const checkPendingTransaction = async () => {
+      const result = await chrome.storage.local.get("current-transaction");
+      const tx = result["current-transaction"];
+      
+      // 如果存在状态为 pending 的交易，且 UI 当前没有正在处理的交易，加载它
+      if (tx && tx.status === "pending") {
+        console.log("Popup: 发现待处理交易", tx);
+        setPendingTx(tx);
+      }
+    };
 
-	const {	
-		mnemonic,
-		accounts,
-		currentAccount,
-		createWallet,
-		createAccount,
-		importAccount,
-		clearCurrentAccount,
-		resetWallet,
-		pendingTx,
-		setPendingTx,
-		getPrivateKey} = useWalletStore();
+    if (_hasHydrated) {
+      checkPendingTransaction();
+    }
+  }, [_hasHydrated, setPendingTx]);
 
-	//处理确认转账
-	const handleConfirmTx = async (txPassword: string) => {
-		if (!pendingTx) return;
-		
-		// 检查密码是否已设置
-		if (!txPassword) {
-			alert("请输入密码");
-			return;
-		}
+  // 处理确认
+  const handleConfirmTx = async (txPassword: string) => {
+    if (!pendingTx) return;
+    if (!txPassword) { alert("请输入密码"); return; }
 
-		try {
-			const privateKey = await getPrivateKey(txPassword);
-			if (!privateKey) throw new Error("私钥获取失败，请检查密码");
+    try {
+      const privateKey = await getPrivateKey(txPassword);
+      if (!privateKey) throw new Error("私钥获取失败，请检查密码");
 
-			// 更新交易状态为确认中
-			const updatedTx = { ...pendingTx, status: 'pending' as const };
-			setPendingTx(updatedTx);
+      // UI更新为处理中
+      setPendingTx({ ...pendingTx, status: 'pending' });
 
-			// 发送交易并等待结果
-			const result = await WalletEngine.sendTransaction(
-				privateKey, 
-				pendingTx.to, 
-				pendingTx.value
-			);
+      // 发送交易
+      const result = await WalletEngine.sendTransaction(privateKey, pendingTx.to, pendingTx.value);
 
-			if (result.success && result.txHash) {
-				// 交易成功，存储交易哈希
-				const successTx = { 
-					...pendingTx, 
-					status: 'confirmed' as const,
-					txHash: result.txHash
-				};
-				setPendingTx(successTx);
-				
-				// 延迟清除，让 background script 有时间读取结果
-				setTimeout(() => {
-					setPendingTx(null);
-				}, 1000);
-				
-				alert(`交易成功！\n交易哈希: ${result.txHash}`);
-			} else {
-				// 交易失败
-				const failedTx = { 
-					...pendingTx, 
-					status: 'failed' as const,
-					error: result.error || '交易失败'
-				};
-				setPendingTx(failedTx);
-				
-				setTimeout(() => {
-					setPendingTx(null);
-				}, 1000);
-				
-				alert(`交易失败：${result.error || '未知错误'}`);
-			}
-		}
-		catch (error: any) {
-			console.error("交易处理失败：", error);
-			
-			// 标记交易失败
-			const failedTx = { 
-				...pendingTx, 
-				status: 'failed' as const,
-				error: error.message || '交易处理失败'
-			};
-			setPendingTx(failedTx);
-			
-			setTimeout(() => {
-				setPendingTx(null);
-			}, 1000);
-			
-			alert(`交易失败：${error.message || '未知错误'}`);
-		}
-	}
+      if (result.success && result.txHash) {
+        // 关键修改：更新 current-transaction 通知后台
+        await chrome.storage.local.set({
+          "current-transaction": {
+            ...pendingTx,
+            status: "confirmed",
+            txHash: result.txHash
+          }
+        });
+        
+        setPendingTx(null);
+        alert(`交易成功！Hash: ${result.txHash}`);
+      } else {
+        // 通知后台失败
+        await chrome.storage.local.set({
+          "current-transaction": {
+             ...pendingTx,
+             status: "failed",
+             error: result.error
+          }
+        });
+        
+        setPendingTx(null);
+        alert(`交易失败：${result.error}`);
+      }
+    } catch (error: any) {
+      // 通知后台报错
+      await chrome.storage.local.set({
+        "current-transaction": {
+           ...pendingTx,
+           status: "failed",
+           error: error.message
+        }
+      });
+      setPendingTx(null);
+      alert(`错误：${error.message}`);
+    }
+  }
 
-	// 处理取消转账
-	const handleCancelTx = () => {
-		if (!pendingTx) return;
-		
-		// 标记交易为已取消
-		const cancelledTx = { 
-			...pendingTx, 
-			status: 'cancelled' as const
-		};
-		setPendingTx(cancelledTx);
-		
-		// 延迟清除，让 background script 有时间读取结果
-		setTimeout(() => {
-			setPendingTx(null);
-		}, 1000);
-	}
+  // 处理取消
+  const handleCancelTx = async () => {
+    if (!pendingTx) return;
 
-	const handleSetupPassword = async (password: string) => {
-		if (!password || password.length < 8) {
-			alert("密码长度不能少于8位");
-			return;
-		}
-		
-		try {
-			await createWallet(password);
-			console.log("钱包创建成功");
-		} catch (error) {
-			console.error("钱包创建失败，请重试");
-		}
-	}
+    // 关键修改：通知后台已取消
+    await chrome.storage.local.set({
+      "current-transaction": {
+        ...pendingTx,
+        status: "cancelled"
+      }
+    });
 
-	const handleLogin = async (password: string) => {
-		setPassword(password);
-	}
+    setPendingTx(null);
+  }
 
-	const handlerImportAccount = async (privateKey: string, password: string, name: string) => {
-		try {
-			await importAccount(privateKey, password, name || "Imported Account");
-			alert("账户导入成功");
-			setPage(null);
-		}
-		catch (error: any) {
-			alert("导入失败：" + (error.message || "请检查私钥或密码"));
-		}
-	}
-	
-	let contentJSX: JSX.Element = null;
+  // ---------------- 原有路由逻辑 ----------------
+  
+  const handleSetupPassword = async (pwd: string) => {
+    if (!pwd || pwd.length < 8) { alert("密码需8位以上"); return; }
+    try { await createWallet(pwd); } catch (e) { console.error(e); }
+  }
+  const handleLogin = async (pwd: string) => setPassword(pwd);
+  const handlerImportAccount = async (pk: string, pwd: string, name: string) => {
+    try { await importAccount(pk, pwd, name); alert("导入成功"); setPage(null); }
+    catch (e: any) { alert(e.message); }
+  }
 
-	// 优先显示交易确认界面
-	if (pendingTx) {
-		contentJSX = <TxConfirm 
-			pendingTx={pendingTx} 
-			handleConfirmTx={handleConfirmTx} 
-			handleCancel={handleCancelTx}
-		/>
-	}
-	// 如果有明确的页面状态，显示对应页面
-	else if (page === Page.ImportedView) {
-		contentJSX = <ImportedView setPage={setPage} importAccount={handlerImportAccount}/>
-	}
-	else if (page === Page.CreateAccountView) {
-		contentJSX = <CreateAccountView setPage={setPage}/>
-	}
-	else if (page === Page.TransactView) {
-		contentJSX = <TransactView setPage={setPage} balance={balance} setBalance={setBalance}/>
-	}
-	//1. 没有助记词，显示创建钱包界面
-	else if (!mnemonic) {
-		contentJSX = <SetPasswordView handleSetupPassword={handleSetupPassword} />
-	}
-	else if (mnemonic && accounts.length === 0) {
-		contentJSX = <LoginView handleLogin={handleLogin} />
-	}
-	// 如果有当前账户，显示余额页面（这是默认的主页面）
-	else if (mnemonic && accounts.length > 0 && currentAccount) {
-		contentJSX = <BalanceView 
-			address={currentAccount.address}
-			balance={balance}
-			setBalance={setBalance}
-			clearCurrentAccount={clearCurrentAccount}
-			setPage={setPage}
-		/>
-	}
-	// 否则显示账户列表
-	else {
-		contentJSX = <AccountView accounts={accounts} setPage={setPage}/>
-	}
+  // Loading
+  if (!_hasHydrated) {
+    return <div className="p-4 flex items-center justify-center h-[500px]">Loading...</div>;
+  }
 
-  return (
-    <div className="p-4 w-[500px] h-[500px]">
-			{contentJSX}
-    </div>
-  )
+  let contentJSX: JSX.Element = null;
+
+  if (pendingTx) {
+    contentJSX = <TxConfirm 
+      pendingTx={pendingTx} 
+      handleConfirmTx={handleConfirmTx} 
+      handleCancel={handleCancelTx}
+    />
+  }
+  else if (page === Page.ImportedView) contentJSX = <ImportedView setPage={setPage} importAccount={handlerImportAccount}/>
+  else if (page === Page.CreateAccountView) contentJSX = <CreateAccountView setPage={setPage}/>
+  else if (page === Page.TransactView) contentJSX = <TransactView setPage={setPage} balance={balance} setBalance={setBalance}/>
+  else if (!mnemonic) contentJSX = <SetPasswordView handleSetupPassword={handleSetupPassword} />
+  else if (mnemonic && accounts.length === 0) contentJSX = <LoginView handleLogin={handleLogin} />
+  else if (mnemonic && accounts.length > 0 && currentAccount) {
+    contentJSX = <BalanceView address={currentAccount.address} balance={balance} setBalance={setBalance} clearCurrentAccount={clearCurrentAccount} setPage={setPage} />
+  }
+  else contentJSX = <AccountView accounts={accounts} setPage={setPage}/>
+
+  return <div className="p-4 w-[500px] h-[500px]">{contentJSX}</div>
 }
 
 export default IndexPopup

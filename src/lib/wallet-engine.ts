@@ -76,17 +76,23 @@ export const WalletEngine = {
 			const provider: JsonRpcProvider = new JsonRpcProvider(SEPOLIA_RPC_URL);
 			const wallet: Wallet = new Wallet(privateKey, provider);
 
-			//将eth金额转为wei
-			const amountInWei = parseEther(amount);
-
 			//获取gas
 			const feeData: FeeData = await provider.getFeeData();
+
+			// [核心修复]：兼容 Hex (Wei) 和 Decimal (ETH) 格式
+      let valueToSend;
+      if (amount.startsWith("0x")) {
+        // 如果是 0x 开头，说明已经是 Wei (Hex)，直接使用
+        valueToSend = amount;
+      } else {
+        // 如果是普通数字字符串，说明是 ETH，需要转换
+        valueToSend = parseEther(amount);
+      }
 
 			//发送交易
 			const tx = await wallet.sendTransaction({
 				to,
-				value: amountInWei,
-				gasLimit: 21000,
+				value: valueToSend,
 				gasPrice: feeData.gasPrice,
 			});
 
