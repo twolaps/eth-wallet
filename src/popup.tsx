@@ -33,18 +33,95 @@ function IndexPopup() {
 		getPrivateKey} = useWalletStore();
 
 	//处理确认转账
-	const handleConfirmTx = async () => {
+	const handleConfirmTx = async (txPassword: string) => {
 		if (!pendingTx) return;
+		
+		// 检查密码是否已设置
+		if (!txPassword) {
+			alert("请输入密码");
+			return;
+		}
+
 		try {
-			const privateKey = await getPrivateKey(password);
-			if (!privateKey) throw new Error("私钥获取失败");
-			WalletEngine.sendTransaction(privateKey, pendingTx.to, pendingTx.value);
-			setPendingTx(null);
+			const privateKey = await getPrivateKey(txPassword);
+			if (!privateKey) throw new Error("私钥获取失败，请检查密码");
+
+			// 更新交易状态为确认中
+			const updatedTx = { ...pendingTx, status: 'pending' as const };
+			setPendingTx(updatedTx);
+
+			// 发送交易并等待结果
+			const result = await WalletEngine.sendTransaction(
+				privateKey, 
+				pendingTx.to, 
+				pendingTx.value
+			);
+
+			if (result.success && result.txHash) {
+				// 交易成功，存储交易哈希
+				const successTx = { 
+					...pendingTx, 
+					status: 'confirmed' as const,
+					txHash: result.txHash
+				};
+				setPendingTx(successTx);
+				
+				// 延迟清除，让 background script 有时间读取结果
+				setTimeout(() => {
+					setPendingTx(null);
+				}, 1000);
+				
+				alert(`交易成功！\n交易哈希: ${result.txHash}`);
+			} else {
+				// 交易失败
+				const failedTx = { 
+					...pendingTx, 
+					status: 'failed' as const,
+					error: result.error || '交易失败'
+				};
+				setPendingTx(failedTx);
+				
+				setTimeout(() => {
+					setPendingTx(null);
+				}, 1000);
+				
+				alert(`交易失败：${result.error || '未知错误'}`);
+			}
 		}
-		catch (error) {
+		catch (error: any) {
 			console.error("交易处理失败：", error);
-			setPendingTx(null);
+			
+			// 标记交易失败
+			const failedTx = { 
+				...pendingTx, 
+				status: 'failed' as const,
+				error: error.message || '交易处理失败'
+			};
+			setPendingTx(failedTx);
+			
+			setTimeout(() => {
+				setPendingTx(null);
+			}, 1000);
+			
+			alert(`交易失败：${error.message || '未知错误'}`);
 		}
+	}
+
+	// 处理取消转账
+	const handleCancelTx = () => {
+		if (!pendingTx) return;
+		
+		// 标记交易为已取消
+		const cancelledTx = { 
+			...pendingTx, 
+			status: 'cancelled' as const
+		};
+		setPendingTx(cancelledTx);
+		
+		// 延迟清除，让 background script 有时间读取结果
+		setTimeout(() => {
+			setPendingTx(null);
+		}, 1000);
 	}
 
 	const handleSetupPassword = async (password: string) => {
@@ -78,10 +155,16 @@ function IndexPopup() {
 	
 	let contentJSX: JSX.Element = null;
 
+	// 优先显示交易确认界面
 	if (pendingTx) {
-		contentJSX = <TxConfirm pendingTx={pendingTx} handleConfirmTx={handleConfirmTx} setPendingTx={setPendingTx}/>
+		contentJSX = <TxConfirm 
+			pendingTx={pendingTx} 
+			handleConfirmTx={handleConfirmTx} 
+			setPendingTx={handleCancelTx}
+		/>
 	}
-	if (page === Page.ImportedView) {
+	// 如果有明确的页面状态，显示对应页面
+	else if (page === Page.ImportedView) {
 		contentJSX = <ImportedView setPage={setPage} importAccount={handlerImportAccount}/>
 	}
 	else if (page === Page.CreateAccountView) {
@@ -97,6 +180,7 @@ function IndexPopup() {
 	else if (mnemonic && accounts.length === 0) {
 		contentJSX = <LoginView handleLogin={handleLogin} />
 	}
+	// 如果有当前账户，显示余额页面（这是默认的主页面）
 	else if (mnemonic && accounts.length > 0 && currentAccount) {
 		contentJSX = <BalanceView 
 			address={currentAccount.address}
@@ -106,6 +190,7 @@ function IndexPopup() {
 			setPage={setPage}
 		/>
 	}
+	// 否则显示账户列表
 	else {
 		contentJSX = <AccountView accounts={accounts} setPage={setPage}/>
 	}
