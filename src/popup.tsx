@@ -32,13 +32,12 @@ function IndexPopup() {
     _hasHydrated
   } = useWalletStore();
 
-  // 1. 新增：监听来自后台的独立交易请求
+  // 监听来自后台的独立交易请求
   useEffect(() => {
     const checkPendingTransaction = async () => {
       const result = await chrome.storage.local.get("current-transaction");
       const tx = result["current-transaction"];
       
-      // 如果存在状态为 pending 的交易，且 UI 当前没有正在处理的交易，加载它
       if (tx && tx.status === "pending") {
         console.log("Popup: 发现待处理交易", tx);
         setPendingTx(tx);
@@ -66,7 +65,7 @@ function IndexPopup() {
       const result = await WalletEngine.sendTransaction(privateKey, pendingTx.to, pendingTx.value);
 
       if (result.success && result.txHash) {
-        // 关键修改：更新 current-transaction 通知后台
+        // 通知后台成功
         await chrome.storage.local.set({
           "current-transaction": {
             ...pendingTx,
@@ -77,6 +76,9 @@ function IndexPopup() {
         
         setPendingTx(null);
         alert(`交易成功！Hash: ${result.txHash}`);
+        
+        // [新增] 交易成功并点击OK后，关闭窗口
+        window.close(); 
       } else {
         // 通知后台失败
         await chrome.storage.local.set({
@@ -87,7 +89,9 @@ function IndexPopup() {
           }
         });
         
-        setPendingTx(null);
+        // 失败时这里也可以选择关闭，或者留着让用户重试
+        // 目前逻辑是提示错误后留在界面，或者重置
+        setPendingTx(null); 
         alert(`交易失败：${result.error}`);
       }
     } catch (error: any) {
@@ -108,7 +112,7 @@ function IndexPopup() {
   const handleCancelTx = async () => {
     if (!pendingTx) return;
 
-    // 关键修改：通知后台已取消
+    // 通知后台已取消
     await chrome.storage.local.set({
       "current-transaction": {
         ...pendingTx,
@@ -117,6 +121,9 @@ function IndexPopup() {
     });
 
     setPendingTx(null);
+    
+    // [新增] 点击取消后，直接关闭窗口
+    window.close();
   }
 
   // ---------------- 原有路由逻辑 ----------------
@@ -131,7 +138,6 @@ function IndexPopup() {
     catch (e: any) { alert(e.message); }
   }
 
-  // Loading
   if (!_hasHydrated) {
     return <div className="p-4 flex items-center justify-center h-[500px]">Loading...</div>;
   }
