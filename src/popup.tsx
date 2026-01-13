@@ -160,7 +160,7 @@ function IndexPopup() {
 		contentJSX = <TxConfirm 
 			pendingTx={pendingTx} 
 			handleConfirmTx={handleConfirmTx} 
-			setPendingTx={handleCancelTx}
+			handleCancel={handleCancelTx}
 		/>
 	}
 	// 如果有明确的页面状态，显示对应页面

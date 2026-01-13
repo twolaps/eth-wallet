@@ -19,6 +19,9 @@ export interface PendingTransaction {
 	to: string;
 	value: string;
 	requestId: string;
+	status?: 'pending' | 'confirmed' | 'failed' | 'cancelled'; // 新增
+	txHash?: string; // 新增
+	error?: string;  // 新增
 }
 
 interface WalletState {

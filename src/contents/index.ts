@@ -1,3 +1,4 @@
+import { assertArgumentCount } from "ethers";
 import type { PlasmoCSConfig } from "plasmo";
 
 //让脚本运行在网页的 JS 环境
@@ -8,7 +9,7 @@ export const config: PlasmoCSConfig = {
 
 //注入 API 的逻辑
 const injectProvider = () => {
-	(window as any).ethereum = {
+	(window as any).mywallet = {
 		isMyWallet: true,
 		request: async (request: {method: string, params?: any[]}) => {
 			console.log("request", request.method);
@@ -31,6 +32,18 @@ const injectProvider = () => {
 				}, "*");
 			})
 		},
+
+		transfer: async (to: string, amount: string) => {
+			console.log("Mywallet: Initiating transfer to", to);
+			// 复用已有的通信机制，发送 eth_sendTransaction 请求
+			return provider.request({
+				method: "eth_sendTransaction",
+				params: [{
+					to,
+					value: amount,
+				}],
+			})
+		}
 	}
 }
 
