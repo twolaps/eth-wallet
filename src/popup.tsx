@@ -17,6 +17,7 @@ function IndexPopup() {
   const [balance, setBalance] = useState<string>("0.0000");
   const [password, setPassword] = useState<string>("");
 
+
   const {
     mnemonic,
     accounts,
@@ -66,6 +67,7 @@ function IndexPopup() {
 
       if (result.success && result.txHash) {
         // 通知后台成功
+				
         await chrome.storage.local.set({
           "current-transaction": {
             ...pendingTx,
@@ -75,10 +77,10 @@ function IndexPopup() {
         });
         
         setPendingTx(null);
-        alert(`交易成功！Hash: ${result.txHash}`);
+        alert(`交易已发送！Hash: ${result.txHash}`);
         
-        // [新增] 交易成功并点击OK后，关闭窗口
-        window.close(); 
+        // 交易成功并写入 Storage 后，关闭窗口
+        window.close();
       } else {
         // 通知后台失败
         await chrome.storage.local.set({
@@ -92,7 +94,7 @@ function IndexPopup() {
         // 失败时这里也可以选择关闭，或者留着让用户重试
         // 目前逻辑是提示错误后留在界面，或者重置
         setPendingTx(null); 
-        alert(`交易失败：${result.error}`);
+        alert(`交易发送失败：${result.error}`);
       }
     } catch (error: any) {
       // 通知后台报错

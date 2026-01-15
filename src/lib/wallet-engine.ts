@@ -76,6 +76,11 @@ export const WalletEngine = {
 			const provider: JsonRpcProvider = new JsonRpcProvider(SEPOLIA_RPC_URL);
 			const wallet: Wallet = new Wallet(privateKey, provider);
 
+			// 【核心修复】：强制获取链上最新 Nonce (latest)，确保不跳号
+			const latestNonce = await provider.getTransactionCount(wallet.address, "latest");
+			console.log("正在使用 Nonce 发送交易:", latestNonce);
+
+
 			//获取gas
 			const feeData: FeeData = await provider.getFeeData();
 
@@ -92,11 +97,12 @@ export const WalletEngine = {
 			//发送交易
 			const tx = await wallet.sendTransaction({
 				to,
+				nonce: latestNonce, // 显式指定 Nonce
 				value: valueToSend,
-				gasPrice: feeData.gasPrice,
+				gasPrice: (await provider.getFeeData()).gasPrice * 12n / 10n,
 			});
 
-			await tx.wait();
+			// await tx.wait();
 
 			return {
 				success: true,
